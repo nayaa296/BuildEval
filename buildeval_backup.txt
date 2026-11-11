@@ -1,0 +1,4 @@
+ITEM|MAT01|Semen Portland 50kg|Sak|75000.00|50
+ITEM|MAT02|Pasir Pasang|m3|260000.00|15
+ITEM|MAT03|Besi Beton 10mm|Batang|85000.00|80
+ITEM|MAT04|Genteng Keramik|Pcs|4500.00|1200

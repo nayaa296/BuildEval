@@ -159,7 +159,14 @@ public class RencanaAnggaran {
     }
 
     /**
-     * Menambahkan item langsung ke internal list (misal saat rekonstruksi dari DB).
+     * Mengosongkan seluruh item material dalam RAB.
+     */
+    public void kosongkanItem() {
+        this.listMaterial.clear();
+    }
+
+    /**
+     * Menambahkan item langsung ke internal list (misal saat rekonstruksi dari DB atau file).
      */
     public void tambahItemInternal(DetailItem item) {
         if (item != null) {
