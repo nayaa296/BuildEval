@@ -1,0 +1,11 @@
+# Abaikan file kompilasi Java
+*.class
+bin/
+
+# Abaikan driver / library lokal berukuran besar
+*.jar
+
+# Abaikan konfigurasi editor/IDE
+.vscode/
+.idea/
+*.iml
