@@ -4,21 +4,34 @@ public class DetailItem {
     private int idDetail;
     private String idRAB;
     private Material material;
-    private double volume;
+    private int jumlah;
+    private double volume; // Dijaga untuk kompatibilitas
     private double subtotal;
 
     public DetailItem() {
     }
 
+    public DetailItem(Material material, int jumlah) {
+        setMaterial(material);
+        setJumlah(jumlah);
+    }
+
     public DetailItem(Material material, double volume) {
-        this.material = material;
+        setMaterial(material);
         setVolume(volume);
+    }
+
+    public DetailItem(int idDetail, String idRAB, Material material, int jumlah) {
+        this.idDetail = idDetail;
+        this.idRAB = idRAB;
+        setMaterial(material);
+        setJumlah(jumlah);
     }
 
     public DetailItem(int idDetail, String idRAB, Material material, double volume) {
         this.idDetail = idDetail;
         this.idRAB = idRAB;
-        this.material = material;
+        setMaterial(material);
         setVolume(volume);
     }
 
@@ -43,7 +56,23 @@ public class DetailItem {
     }
 
     public void setMaterial(Material material) {
+        if (material == null) {
+            throw new IllegalArgumentException("Material tidak boleh null.");
+        }
         this.material = material;
+        hitungSubtotal();
+    }
+
+    public int getJumlah() {
+        return jumlah;
+    }
+
+    public void setJumlah(int jumlah) {
+        if (jumlah <= 0) {
+            throw new IllegalArgumentException("Jumlah item pembelian harus lebih dari 0.");
+        }
+        this.jumlah = jumlah;
+        this.volume = jumlah;
         hitungSubtotal();
     }
 
@@ -53,9 +82,10 @@ public class DetailItem {
 
     public void setVolume(double volume) {
         if (volume <= 0) {
-            throw new IllegalArgumentException("Volume harus lebih besar dari 0!");
+            throw new IllegalArgumentException("Jumlah item pembelian harus lebih dari 0.");
         }
         this.volume = volume;
+        this.jumlah = (int) Math.round(volume);
         hitungSubtotal();
     }
 
@@ -69,11 +99,11 @@ public class DetailItem {
 
     public double hitungSubtotal() {
         if (this.material != null) {
-            this.subtotal = this.volume * this.material.getHargaSatuan();
+            double qty = this.jumlah > 0 ? this.jumlah : this.volume;
+            this.subtotal = qty * this.material.getHargaSatuan();
         } else {
             this.subtotal = 0;
         }
         return this.subtotal;
     }
 }
-

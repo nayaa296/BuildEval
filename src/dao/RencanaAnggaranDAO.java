@@ -1,6 +1,7 @@
 package dao;
 
 import config.DatabaseConfig;
+import exception.DataNotFoundException;
 import model.DetailItem;
 import model.Manajer;
 import model.Material;
@@ -45,7 +46,7 @@ public class RencanaAnggaranDAO {
             }
 
             // 2. Simpan master Material yang digunakan
-            for (DetailItem detail : rab.getListDetail()) {
+            for (DetailItem detail : rab.getListMaterial()) {
                 if (detail.getMaterial() != null) {
                     try (PreparedStatement psMat = conn.prepareStatement(sqlMaterial)) {
                         psMat.setString(1, detail.getMaterial().getIdMaterial());
@@ -61,7 +62,7 @@ public class RencanaAnggaranDAO {
             try (PreparedStatement psRAB = conn.prepareStatement(sqlRAB)) {
                 psRAB.setString(1, rab.getIdRAB());
                 psRAB.setString(2, rab.getNamaProyek());
-                psRAB.setDouble(3, rab.getBatasPagu());
+                psRAB.setDouble(3, rab.getBatasBudget());
                 psRAB.setString(4, rab.getManajer() != null ? rab.getManajer().getIdManajer() : null);
                 psRAB.executeUpdate();
             }
@@ -74,10 +75,11 @@ public class RencanaAnggaranDAO {
 
             // 5. Simpan item detail_item dengan batch
             try (PreparedStatement psDetail = conn.prepareStatement(sqlDetail)) {
-                for (DetailItem detail : rab.getListDetail()) {
+                for (DetailItem detail : rab.getListMaterial()) {
                     psDetail.setString(1, rab.getIdRAB());
                     psDetail.setString(2, detail.getMaterial() != null ? detail.getMaterial().getIdMaterial() : null);
-                    psDetail.setInt(3, (int) Math.round(detail.getVolume()));
+                    int qty = detail.getJumlah() > 0 ? detail.getJumlah() : (int) Math.round(detail.getVolume());
+                    psDetail.setInt(3, qty);
                     psDetail.addBatch();
                 }
                 psDetail.executeBatch();
@@ -107,7 +109,7 @@ public class RencanaAnggaranDAO {
         }
     }
 
-    public RencanaAnggaran getRABById(String idRAB) throws SQLException {
+    public RencanaAnggaran getRABById(String idRAB) throws SQLException, DataNotFoundException {
         String query = "SELECT r.id_rab, r.nama_proyek, r.batas_budget, " +
                        "       m.id_manajer, m.nama AS nama_manajer, " +
                        "       d.id AS id_detail, d.jumlah, " +
@@ -131,7 +133,7 @@ public class RencanaAnggaranDAO {
                         rab = new RencanaAnggaran();
                         rab.setIdRAB(rs.getString("id_rab"));
                         rab.setNamaProyek(rs.getString("nama_proyek"));
-                        rab.setBatasPagu(rs.getDouble("batas_budget"));
+                        rab.setBatasBudget(rs.getDouble("batas_budget"));
 
                         String idManajer = rs.getString("id_manajer");
                         if (idManajer != null) {
@@ -159,14 +161,17 @@ public class RencanaAnggaranDAO {
                         item.setIdDetail(idDetail);
                         item.setIdRAB(rab.getIdRAB());
                         item.setMaterial(mat);
-                        item.setVolume(rs.getDouble("jumlah"));
-                        // hitungSubtotal otomatis mengalikan volume * harga_satuan
+                        item.setJumlah(rs.getInt("jumlah"));
                         item.hitungSubtotal();
 
-                        rab.getListDetail().add(item);
+                        rab.getListMaterial().add(item);
                     }
                 }
             }
+        }
+
+        if (rab == null) {
+            throw new DataNotFoundException("Data RAB dengan ID '" + idRAB + "' tidak ditemukan di database.");
         }
 
         return rab;

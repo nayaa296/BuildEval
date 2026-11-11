@@ -1,4 +1,4 @@
-import dao.RencanaAnggaranDAO;
+import exception.BudgetOverlimitException;
 import model.DetailItem;
 import model.Manajer;
 import model.Material;
@@ -7,51 +7,77 @@ import model.RencanaAnggaran;
 public class Main {
     public static void main(String[] args) {
         System.out.println("==========================================================================================");
-        System.out.println("                     APLIKASI EVALUASI ANGGARAN PROYEK - BUILDEVAL                        ");
+        System.out.println("               PENGUJIAN VALIDASI & EXCEPTION HANDLING - BUILDEVAL                        ");
         System.out.println("==========================================================================================\n");
 
+        // Inisialisasi Manajer dan RencanaAnggaran dengan pagu Rp 10.000.000
+        Manajer manajer = new Manajer("M001", "Budi Santoso, S.T.", "081234567890");
+        RencanaAnggaran rab = new RencanaAnggaran("RAB-SIMULASI-001", "Renovasi Ruang Kantor", 10000000.0, manajer);
+
+        // Data Master Material untuk simulasi
+        Material semen = new Material("MAT01", "Semen PPC", "Sak", 70000.0);
+        Material cat = new Material("MAT02", "Cat Tembok 20kg", "Pail", 650000.0);
+        Material keramik = new Material("MAT03", "Keramik Granit 60x60", "Dus", 200000.0);
+
+        System.out.printf("Objek Rencana Anggaran diinisialisasi dengan Batas Budget: Rp %,.2f%n%n", rab.getBatasBudget());
+
+        // -------------------------------------------------------------------------
+        // Skenario a: Skenario Berhasil (Semen PPC 30 sak -> 30 * 70.000 = Rp 2.100.000)
+        // -------------------------------------------------------------------------
+        System.out.println(">>> [SKENARIO A] Percobaan Penambahan Item yang Valid (Semen PPC 30 sak)...");
         try {
-            // 1. Inisialisasi Data Manajer
-            Manajer manajer = new Manajer("M001", "Budi Santoso, S.T.", "081234567890");
-
-            // 2. Inisialisasi Data Material
-            Material semen = new Material("MAT01", "Semen Portland 50kg", "Sak", 75000.0);
-            Material pasir = new Material("MAT02", "Pasir Pasang", "m3", 260000.0);
-            Material besi = new Material("MAT03", "Besi Beton 10mm", "Batang", 85000.0);
-            Material bata = new Material("MAT04", "Bata Merah Standar", "Pcs", 900.0);
-
-            // 3. Inisialisasi Rencana Anggaran Biaya (RAB)
-            // Batas pagu anggaran proyek: Rp 75.000.000,00
-            RencanaAnggaran rabBaru = new RencanaAnggaran("RAB-2026-001", "Pembangunan Ruko 2 Lantai", 75000000.0, manajer);
-
-            // Tambahkan rincian detail item
-            rabBaru.tambahDetailItem(new DetailItem(semen, 200));   // 200 sak * 75.000 = 15.000.000
-            rabBaru.tambahDetailItem(new DetailItem(pasir, 45));    // 45 m3 * 260.000 = 11.700.000
-            rabBaru.tambahDetailItem(new DetailItem(besi, 250));    // 250 btg * 85.000 = 21.250.000
-            rabBaru.tambahDetailItem(new DetailItem(bata, 15000));  // 15.000 pcs * 900 = 13.500.000
-
-            // 4. Simpan ke Database MySQL (XAMPP) via DAO dengan mekanisme transaksi
-            RencanaAnggaranDAO dao = new RencanaAnggaranDAO();
-            System.out.println("[1] Menyimpan data RAB ke database 'buildeval_db'...");
-            dao.simpanRAB(rabBaru);
-            System.out.println();
-
-            // 5. Ambil kembali data dari Database MySQL berbasis JOIN
-            System.out.println("[2] Mengambil dan merekonstruksi kembali objek RAB dari database...");
-            RencanaAnggaran rabDariDB = dao.getRABById("RAB-2026-001");
-
-            // 6. Cetak laporan kelayakan dari data yang telah direkonstruksi
-            if (rabDariDB != null) {
-                System.out.println("\n[3] Menampilkan Laporan Hasil Evaluasi:");
-                rabDariDB.cetakLaporanRAB();
-            } else {
-                System.err.println("Data RAB tidak ditemukan di database!");
-            }
-
-        } catch (Exception e) {
-            System.err.println("Terjadi kesalahan sistem: " + e.getMessage());
-            e.printStackTrace();
+            DetailItem item1 = new DetailItem(semen, 30);
+            rab.tambahItem(item1);
+            System.out.println("[SUKSES] Item '" + semen.getNamaMaterial() + "' (30 sak) berhasil ditambahkan.");
+        } catch (BudgetOverlimitException e) {
+            System.err.println("[DITANGKAP BudgetOverlimitException] " + e.getMessage());
+        } catch (IllegalArgumentException e) {
+            System.err.println("[DITANGKAP IllegalArgumentException] " + e.getMessage());
+        } finally {
+            System.out.printf("[FINALLY A] Total Biaya Saat Ini: Rp %,.2f | Total Item: %d%n%n", 
+                rab.hitungTotalBiaya(), rab.getListMaterial().size());
         }
+
+        // -------------------------------------------------------------------------
+        // Skenario b: Skenario Gagal 1 - Input jumlah negatif (-5)
+        // -------------------------------------------------------------------------
+        System.out.println(">>> [SKENARIO B] Percobaan Penambahan Item dengan Jumlah Negatif (-5)...");
+        try {
+            DetailItem itemNegatif = new DetailItem(cat, -5);
+            rab.tambahItem(itemNegatif);
+            System.out.println("[SUKSES] Item berhasil ditambahkan.");
+        } catch (BudgetOverlimitException e) {
+            System.err.println("[DITANGKAP BudgetOverlimitException] " + e.getMessage());
+        } catch (IllegalArgumentException e) {
+            System.err.println("[DITANGKAP IllegalArgumentException] " + e.getMessage());
+        } finally {
+            System.out.printf("[FINALLY B] Total Biaya Saat Ini: Rp %,.2f | Total Item: %d%n%n", 
+                rab.hitungTotalBiaya(), rab.getListMaterial().size());
+        }
+
+        // -------------------------------------------------------------------------
+        // Skenario c: Skenario Gagal 2 - Penambahan item berlebih melebihi budget
+        // Budget = 10.000.000, Total saat ini = 2.100.000, Sisa = 7.900.000
+        // Tambah Keramik 45 dus * 200.000 = Rp 9.000.000 -> Total estimasi = 11.100.000 (> 10.000.000)
+        // -------------------------------------------------------------------------
+        System.out.println(">>> [SKENARIO C] Percobaan Penambahan Item Melebihi Budget (Keramik Granit 45 dus @ Rp 200.000 = Rp 9.000.000)...");
+        try {
+            DetailItem itemOver = new DetailItem(keramik, 45);
+            rab.tambahItem(itemOver);
+            System.out.println("[SUKSES] Item berhasil ditambahkan.");
+        } catch (BudgetOverlimitException e) {
+            System.err.println("[DITANGKAP BudgetOverlimitException] " + e.getMessage());
+        } catch (IllegalArgumentException e) {
+            System.err.println("[DITANGKAP IllegalArgumentException] " + e.getMessage());
+        } finally {
+            System.out.printf("[FINALLY C] Total Biaya Saat Ini: Rp %,.2f | Total Item: %d%n%n", 
+                rab.hitungTotalBiaya(), rab.getListMaterial().size());
+        }
+
+        // -------------------------------------------------------------------------
+        // Laporan Akhir RAB
+        // -------------------------------------------------------------------------
+        System.out.println(">>> Menampilkan Laporan Akhir Rencana Anggaran Biaya (RAB):");
+        rab.cetakLaporanRAB();
     }
 }
-

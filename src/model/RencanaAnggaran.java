@@ -1,25 +1,29 @@
 package model;
 
+import exception.BudgetOverlimitException;
 import java.util.ArrayList;
 import java.util.List;
 
 public class RencanaAnggaran {
     private String idRAB;
     private String namaProyek;
-    private double batasPagu;
+    private double batasBudget; // Alias batasPagu
     private Manajer manajer;
-    private List<DetailItem> listDetail;
+    private List<DetailItem> listMaterial; // Alias listDetail
 
     public RencanaAnggaran() {
-        this.listDetail = new ArrayList<>();
+        this.listMaterial = new ArrayList<>();
     }
 
-    public RencanaAnggaran(String idRAB, String namaProyek, double batasPagu, Manajer manajer) {
+    public RencanaAnggaran(String idRAB, String namaProyek, double batasBudget, Manajer manajer) {
+        if (batasBudget <= 0) {
+            throw new IllegalArgumentException("Batas budget harus lebih besar dari 0.");
+        }
         this.idRAB = idRAB;
         this.namaProyek = namaProyek;
-        setBatasPagu(batasPagu);
+        this.batasBudget = batasBudget;
         this.manajer = manajer;
-        this.listDetail = new ArrayList<>();
+        this.listMaterial = new ArrayList<>();
     }
 
     public String getIdRAB() {
@@ -38,15 +42,24 @@ public class RencanaAnggaran {
         this.namaProyek = namaProyek;
     }
 
+    public double getBatasBudget() {
+        return batasBudget;
+    }
+
+    public void setBatasBudget(double batasBudget) {
+        if (batasBudget <= 0) {
+            throw new IllegalArgumentException("Batas budget harus lebih besar dari 0.");
+        }
+        this.batasBudget = batasBudget;
+    }
+
+    // Kompatibilitas dengan kode sebelumnya
     public double getBatasPagu() {
-        return batasPagu;
+        return batasBudget;
     }
 
     public void setBatasPagu(double batasPagu) {
-        if (batasPagu <= 0) {
-            throw new IllegalArgumentException("Batas pagu harus lebih besar dari 0!");
-        }
-        this.batasPagu = batasPagu;
+        setBatasBudget(batasPagu);
     }
 
     public Manajer getManajer() {
@@ -57,24 +70,61 @@ public class RencanaAnggaran {
         this.manajer = manajer;
     }
 
+    public List<DetailItem> getListMaterial() {
+        return listMaterial;
+    }
+
+    public void setListMaterial(List<DetailItem> listMaterial) {
+        this.listMaterial = listMaterial;
+    }
+
+    // Kompatibilitas dengan getListDetail
     public List<DetailItem> getListDetail() {
-        return listDetail;
+        return listMaterial;
     }
 
     public void setListDetail(List<DetailItem> listDetail) {
-        this.listDetail = listDetail;
+        this.listMaterial = listDetail;
     }
 
+    public void tambahItem(DetailItem item) throws BudgetOverlimitException {
+        if (item == null) {
+            throw new IllegalArgumentException("Detail item tidak boleh null.");
+        }
+
+        // Pengecekan SEBELUM mengubah state listMaterial
+        double totalSekarang = hitungTotalBiaya();
+        double subtotalItemBaru = item.hitungSubtotal();
+        double estimasiTotal = totalSekarang + subtotalItemBaru;
+
+        if (estimasiTotal > this.batasBudget) {
+            double selisih = estimasiTotal - this.batasBudget;
+            throw new BudgetOverlimitException(String.format(
+                "Penambahan item '%s' ditolak! Estimasi total biaya (Rp %,.2f) melebihi batas budget (Rp %,.2f) sebesar Rp %,.2f.",
+                item.getMaterial() != null ? item.getMaterial().getNamaMaterial() : "Unknown",
+                estimasiTotal,
+                this.batasBudget,
+                selisih
+            ));
+        }
+
+        // listMaterial.add(item) HANYA dieksekusi jika seluruh pemeriksaan berhasil
+        item.setIdRAB(this.idRAB);
+        this.listMaterial.add(item);
+    }
+
+    // Kompatibilitas tambahDetailItem
     public void tambahDetailItem(DetailItem item) {
-        if (item != null) {
-            item.setIdRAB(this.idRAB);
-            this.listDetail.add(item);
+        try {
+            tambahItem(item);
+        } catch (BudgetOverlimitException e) {
+            throw new RuntimeException(e.getMessage(), e);
         }
     }
 
     public double hitungTotalBiaya() {
         double total = 0.0;
-        for (DetailItem item : listDetail) {
+        for (DetailItem item : listMaterial) {
             total += item.hitungSubtotal();
         }
         return total;
@@ -82,7 +132,7 @@ public class RencanaAnggaran {
 
     public String evaluasiKelayakan() {
         double total = hitungTotalBiaya();
-        if (total <= batasPagu) {
+        if (total <= batasBudget) {
             return "LAYAK (Dalam Batas Pagu Anggaran)";
         } else {
             return "TIDAK LAYAK (Over Budget / Melebihi Batas Pagu)";
@@ -96,27 +146,28 @@ public class RencanaAnggaran {
         System.out.println("ID RAB       : " + idRAB);
         System.out.println("Nama Proyek  : " + namaProyek);
         if (manajer != null) {
-            System.out.println("Manajer      : " + manajer.getNamaManajer() + " (ID: " + manajer.getIdManajer() + ", Kontak: " + manajer.getKontak() + ")");
+            System.out.println("Manajer      : " + manajer.getNamaManajer() + " (ID: " + manajer.getIdManajer() + ")");
         }
-        System.out.printf("Batas Pagu   : Rp %,.2f%n", batasPagu);
+        System.out.printf("Batas Budget : Rp %,.2f%n", batasBudget);
         System.out.println("------------------------------------------------------------------------------------------");
-        System.out.printf("%-5s | %-20s | %-10s | %-15s | %-18s%n", "No", "Nama Material", "Volume", "Harga Satuan", "Subtotal");
+        System.out.printf("%-5s | %-25s | %-12s | %-15s | %-18s%n", "No", "Nama Material", "Jumlah", "Harga Satuan", "Subtotal");
         System.out.println("------------------------------------------------------------------------------------------");
 
         int no = 1;
-        for (DetailItem item : listDetail) {
+        for (DetailItem item : listMaterial) {
             Material m = item.getMaterial();
             String namaMat = (m != null) ? m.getNamaMaterial() : "-";
-            String volSat = item.getVolume() + " " + ((m != null) ? m.getSatuan() : "");
+            int qty = item.getJumlah() > 0 ? item.getJumlah() : (int) Math.round(item.getVolume());
+            String jmlSat = qty + " " + ((m != null) ? m.getSatuan() : "");
             double hrg = (m != null) ? m.getHargaSatuan() : 0.0;
             double sub = item.getSubtotal();
 
-            System.out.printf("%-5d | %-20s | %-10s | Rp %,12.2f | Rp %,15.2f%n", 
-                no++, namaMat, volSat, hrg, sub);
+            System.out.printf("%-5d | %-25s | %-12s | Rp %,12.2f | Rp %,15.2f%n", 
+                no++, namaMat, jmlSat, hrg, sub);
         }
 
         double totalBiaya = hitungTotalBiaya();
-        double selisih = batasPagu - totalBiaya;
+        double selisih = batasBudget - totalBiaya;
 
         System.out.println("------------------------------------------------------------------------------------------");
         System.out.printf("Total Biaya RAB      : Rp %,.2f%n", totalBiaya);
@@ -125,4 +176,3 @@ public class RencanaAnggaran {
         System.out.println("==========================================================================================");
     }
 }
-
