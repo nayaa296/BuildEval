@@ -164,7 +164,7 @@ public class RencanaAnggaranDAO {
                         item.setJumlah(rs.getInt("jumlah"));
                         item.hitungSubtotal();
 
-                        rab.getListMaterial().add(item);
+                        rab.tambahItemInternal(item);
                     }
                 }
             }

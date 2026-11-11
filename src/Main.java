@@ -7,77 +7,99 @@ import model.RencanaAnggaran;
 public class Main {
     public static void main(String[] args) {
         System.out.println("==========================================================================================");
-        System.out.println("               PENGUJIAN VALIDASI & EXCEPTION HANDLING - BUILDEVAL                        ");
+        System.out.println("          SIMULASI PENGUJIAN MANAJEMEN KOLEKSI MATERIAL MODUL 11 - BUILDEVAL             ");
         System.out.println("==========================================================================================\n");
 
-        // Inisialisasi Manajer dan RencanaAnggaran dengan pagu Rp 10.000.000
+        // 1. Inisialisasi Objek Manajer dan RencanaAnggaran
         Manajer manajer = new Manajer("M001", "Budi Santoso, S.T.", "081234567890");
-        RencanaAnggaran rab = new RencanaAnggaran("RAB-SIMULASI-001", "Renovasi Ruang Kantor", 10000000.0, manajer);
+        RencanaAnggaran rab = new RencanaAnggaran("RAB-2026-M11", "Proyek Renovasi Gedung Serbaguna", 25000000.0, manajer);
 
-        // Data Master Material untuk simulasi
-        Material semen = new Material("MAT01", "Semen PPC", "Sak", 70000.0);
-        Material cat = new Material("MAT02", "Cat Tembok 20kg", "Pail", 650000.0);
-        Material keramik = new Material("MAT03", "Keramik Granit 60x60", "Dus", 200000.0);
+        System.out.println("Status Awal: Objek Rencana Anggaran berhasil diinisialisasi.");
+        System.out.printf("Batas Budget: Rp %,.2f | Total Item Saat Ini: %d%n%n", 
+            rab.getBatasBudget(), rab.getListMaterial().size());
 
-        System.out.printf("Objek Rencana Anggaran diinisialisasi dengan Batas Budget: Rp %,.2f%n%n", rab.getBatasBudget());
+        // 2. Tambah beberapa material ke dalam RAB
+        System.out.println(">>> 1. Menambahkan beberapa material ke dalam RAB...");
+        Material semen = new Material("MAT01", "Semen Portland 50kg", "Sak", 75000.0);
+        Material pasir = new Material("MAT02", "Pasir Pasang", "m3", 250000.0);
+        Material besi = new Material("MAT03", "Besi Beton 10mm", "Batang", 90000.0);
+        Material cat = new Material("MAT04", "Cat Tembok Eksterior 20kg", "Pail", 650000.0);
 
-        // -------------------------------------------------------------------------
-        // Skenario a: Skenario Berhasil (Semen PPC 30 sak -> 30 * 70.000 = Rp 2.100.000)
-        // -------------------------------------------------------------------------
-        System.out.println(">>> [SKENARIO A] Percobaan Penambahan Item yang Valid (Semen PPC 30 sak)...");
         try {
-            DetailItem item1 = new DetailItem(semen, 30);
-            rab.tambahItem(item1);
-            System.out.println("[SUKSES] Item '" + semen.getNamaMaterial() + "' (30 sak) berhasil ditambahkan.");
+            rab.tambahItem(new DetailItem(semen, 40));   // 40 * 75.000 = 3.000.000
+            rab.tambahItem(new DetailItem(pasir, 12));   // 12 * 250.000 = 3.000.000
+            rab.tambahItem(new DetailItem(besi, 50));    // 50 * 90.000 = 4.500.000
+            rab.tambahItem(new DetailItem(cat, 8));      // 8 * 650.000 = 5.200.000
+            System.out.println("[SUKSES] 4 material berhasil ditambahkan ke RAB.");
         } catch (BudgetOverlimitException e) {
-            System.err.println("[DITANGKAP BudgetOverlimitException] " + e.getMessage());
-        } catch (IllegalArgumentException e) {
-            System.err.println("[DITANGKAP IllegalArgumentException] " + e.getMessage());
-        } finally {
-            System.out.printf("[FINALLY A] Total Biaya Saat Ini: Rp %,.2f | Total Item: %d%n%n", 
-                rab.hitungTotalBiaya(), rab.getListMaterial().size());
+            System.err.println("[ERROR] Gagal menambah item: " + e.getMessage());
         }
 
-        // -------------------------------------------------------------------------
-        // Skenario b: Skenario Gagal 1 - Input jumlah negatif (-5)
-        // -------------------------------------------------------------------------
-        System.out.println(">>> [SKENARIO B] Percobaan Penambahan Item dengan Jumlah Negatif (-5)...");
-        try {
-            DetailItem itemNegatif = new DetailItem(cat, -5);
-            rab.tambahItem(itemNegatif);
-            System.out.println("[SUKSES] Item berhasil ditambahkan.");
-        } catch (BudgetOverlimitException e) {
-            System.err.println("[DITANGKAP BudgetOverlimitException] " + e.getMessage());
-        } catch (IllegalArgumentException e) {
-            System.err.println("[DITANGKAP IllegalArgumentException] " + e.getMessage());
-        } finally {
-            System.out.printf("[FINALLY B] Total Biaya Saat Ini: Rp %,.2f | Total Item: %d%n%n", 
-                rab.hitungTotalBiaya(), rab.getListMaterial().size());
+        // Tampilkan total item dan total biaya
+        System.out.printf("Total Item di RAB : %d item%n", rab.getListMaterial().size());
+        System.out.printf("Total Biaya RAB   : Rp %,.2f%n%n", rab.hitungTotalBiaya());
+
+        // 3. Pencarian Material dengan cariItem() (case-insensitive)
+        System.out.println(">>> 2. Pengujian cariItem()...");
+        
+        // Pencarian sukses (uji huruf kecil 'mat02')
+        String cariKode1 = "mat02";
+        System.out.println("Mencari item dengan kode: '" + cariKode1 + "' (case-insensitive)...");
+        DetailItem itemDitemukan = rab.cariItem(cariKode1);
+        if (itemDitemukan != null) {
+            System.out.printf("  -> [DITEMUKAN] Kode: %s | Nama: %s | Jumlah: %d %s | Subtotal: Rp %,.2f%n",
+                itemDitemukan.getMaterial().getIdMaterial(),
+                itemDitemukan.getMaterial().getNamaMaterial(),
+                itemDitemukan.getJumlah(),
+                itemDitemukan.getMaterial().getSatuan(),
+                itemDitemukan.getSubtotal()
+            );
+        } else {
+            System.out.println("  -> [TIDAK DITEMUKAN] Item tidak ada dalam daftar.");
         }
 
-        // -------------------------------------------------------------------------
-        // Skenario c: Skenario Gagal 2 - Penambahan item berlebih melebihi budget
-        // Budget = 10.000.000, Total saat ini = 2.100.000, Sisa = 7.900.000
-        // Tambah Keramik 45 dus * 200.000 = Rp 9.000.000 -> Total estimasi = 11.100.000 (> 10.000.000)
-        // -------------------------------------------------------------------------
-        System.out.println(">>> [SKENARIO C] Percobaan Penambahan Item Melebihi Budget (Keramik Granit 45 dus @ Rp 200.000 = Rp 9.000.000)...");
-        try {
-            DetailItem itemOver = new DetailItem(keramik, 45);
-            rab.tambahItem(itemOver);
-            System.out.println("[SUKSES] Item berhasil ditambahkan.");
-        } catch (BudgetOverlimitException e) {
-            System.err.println("[DITANGKAP BudgetOverlimitException] " + e.getMessage());
-        } catch (IllegalArgumentException e) {
-            System.err.println("[DITANGKAP IllegalArgumentException] " + e.getMessage());
-        } finally {
-            System.out.printf("[FINALLY C] Total Biaya Saat Ini: Rp %,.2f | Total Item: %d%n%n", 
-                rab.hitungTotalBiaya(), rab.getListMaterial().size());
+        // Pencarian gagal (kode tidak terdaftar)
+        String cariKode2 = "MAT99";
+        System.out.println("Mencari item dengan kode: '" + cariKode2 + "'...");
+        DetailItem itemTidakAda = rab.cariItem(cariKode2);
+        if (itemTidakAda != null) {
+            System.out.printf("  -> [DITEMUKAN] %s%n", itemTidakAda.getMaterial().getNamaMaterial());
+        } else {
+            System.out.println("  -> [TIDAK DITEMUKAN] Item dengan kode '" + cariKode2 + "' tidak terdaftar dalam RAB.");
         }
+        System.out.println();
 
-        // -------------------------------------------------------------------------
-        // Laporan Akhir RAB
-        // -------------------------------------------------------------------------
-        System.out.println(">>> Menampilkan Laporan Akhir Rencana Anggaran Biaya (RAB):");
+        // 4. Pengujian hapusItem() untuk item yang ada
+        System.out.println(">>> 3. Pengujian hapusItem() untuk item yang ada di RAB...");
+        String hapusKode1 = "MAT03"; // Besi Beton 10mm
+        System.out.println("Menghapus material dengan kode: '" + hapusKode1 + "'...");
+        boolean statusHapus1 = rab.hapusItem(hapusKode1);
+        System.out.printf("  -> Status penghapusan: %s%n", statusHapus1 ? "BERHASIL DIHAPUS" : "GAGAL DIHAPUS");
+        System.out.printf("  -> Total Item Sekarang: %d item | Total Biaya: Rp %,.2f%n%n", 
+            rab.getListMaterial().size(), rab.hitungTotalBiaya());
+
+        // 5. Pengujian hapusItem() untuk item yang TIDAK terdaftar
+        System.out.println(">>> 4. Pengujian hapusItem() untuk item yang TIDAK terdaftar...");
+        String hapusKode2 = "MAT99";
+        System.out.println("Menghapus material dengan kode: '" + hapusKode2 + "'...");
+        boolean statusHapus2 = rab.hapusItem(hapusKode2);
+        System.out.printf("  -> Status penghapusan: %s (Item tidak ditemukan)%n", statusHapus2 ? "BERHASIL" : "GAGAL (false)");
+        System.out.printf("  -> Total Item Sekarang: %d item | Total Biaya: Rp %,.2f%n%n", 
+            rab.getListMaterial().size(), rab.hitungTotalBiaya());
+
+        // 6. Uji Immutability / UnmodifiableList getListMaterial()
+        System.out.println(">>> 5. Pengujian Keamanan Koleksi (UnmodifiableList)...");
+        try {
+            rab.getListMaterial().add(new DetailItem(besi, 10));
+            System.out.println("  -> [PERINGATAN] Koleksi dapat dimodifikasi langsung!");
+        } catch (UnsupportedOperationException e) {
+            System.out.println("  -> [TERLINDUNGI] Koleksi internal aman dari manipulasi langsung via getListMaterial().add(): " 
+                + e.getClass().getSimpleName() + " dilempar.");
+        }
+        System.out.println();
+
+        // 7. Cetak Laporan Akhir RAB
+        System.out.println(">>> 6. Laporan Akhir Rencana Anggaran Biaya (RAB):");
         rab.cetakLaporanRAB();
     }
 }
