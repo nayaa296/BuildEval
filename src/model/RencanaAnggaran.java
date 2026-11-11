@@ -93,14 +93,23 @@ public class RencanaAnggaran {
     }
 
     /**
-     * Menambahkan item baru ke dalam RAB dengan validasi batas budget.
+     * Menambahkan item baru ke dalam RAB dengan validasi duplikasi kode dan batas budget.
      */
     public void tambahItem(DetailItem item) throws BudgetOverlimitException {
         if (item == null) {
             throw new IllegalArgumentException("Detail item tidak boleh null.");
         }
+        if (item.getMaterial() == null || item.getMaterial().getIdMaterial() == null || item.getMaterial().getIdMaterial().trim().isEmpty()) {
+            throw new IllegalArgumentException("Kode material tidak valid.");
+        }
 
-        // Pengecekan SEBELUM mengubah state listMaterial
+        // 1. Validasi Bisnis: Pengecekan duplikasi kode material
+        String kodeBaru = item.getMaterial().getIdMaterial().trim();
+        if (cariItem(kodeBaru) != null) {
+            throw new IllegalArgumentException("Item dengan kode '" + kodeBaru + "' sudah ada di dalam RAB.");
+        }
+
+        // 2. Validasi Bisnis: Pengecekan batas budget SEBELUM mengubah state listMaterial
         double totalSekarang = hitungTotalBiaya();
         double subtotalItemBaru = item.hitungSubtotal();
         double estimasiTotal = totalSekarang + subtotalItemBaru;
@@ -109,7 +118,7 @@ public class RencanaAnggaran {
             double selisih = estimasiTotal - this.batasBudget;
             throw new BudgetOverlimitException(String.format(
                 "Penambahan item '%s' ditolak! Estimasi total biaya (Rp %,.2f) melebihi batas budget (Rp %,.2f) sebesar Rp %,.2f.",
-                item.getMaterial() != null ? item.getMaterial().getNamaMaterial() : "Unknown",
+                item.getMaterial().getNamaMaterial() != null ? item.getMaterial().getNamaMaterial() : "Unknown",
                 estimasiTotal,
                 this.batasBudget,
                 selisih

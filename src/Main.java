@@ -14,17 +14,18 @@ import java.util.Scanner;
 
 public class Main {
 
-    private static final Scanner scanner = new Scanner(System.in);
     private static final Path BACKUP_PATH = Paths.get("buildeval_backup.txt");
-    private static final RencanaAnggaranDAO dao = new RencanaAnggaranDAO();
     private static boolean apakahAdaPerubahan = false;
 
     public static void main(String[] args) {
+        Scanner scanner = new Scanner(System.in);
+        RencanaAnggaranDAO dao = new RencanaAnggaranDAO();
+
         System.out.println("==========================================================================================");
-        System.out.println("            SISTEM EVALUASI ANGGARAN BIAYA PROYEK - BUILDEVAL (MODUL 13)                 ");
+        System.out.println("            SISTEM EVALUASI ANGGARAN BIAYA PROYEK - BUILDEVAL (MODUL 14)                 ");
         System.out.println("==========================================================================================");
 
-        // Inisialisasi awal proyek dan manajer
+        // Inisialisasi awal objek domain
         Manajer manajer = new Manajer("M001", "Budi Santoso, S.T.", "081234567890");
         RencanaAnggaran rab = new RencanaAnggaran("RAB-2026-001", "Pembangunan Fasilitas Publik", 50000000.0, manajer);
 
@@ -39,30 +40,29 @@ public class Main {
 
         while (berjalan) {
             tampilkanMenu();
-            System.out.print("Pilih opsi menu [0-6]: ");
-            String inputPilihan = scanner.nextLine().trim();
+            String inputPilihan = bacaInput(scanner, "Pilih opsi menu [0-6]: ");
 
             switch (inputPilihan) {
                 case "1":
-                    menuTambahMaterial(rab);
+                    menuTambahMaterial(scanner, rab);
                     break;
                 case "2":
-                    menuTampilkanLaporan(rab);
+                    menuCetakLaporan(rab);
                     break;
                 case "3":
-                    menuCariMaterial(rab);
+                    menuCariMaterial(scanner, rab);
                     break;
                 case "4":
-                    menuHapusMaterial(rab);
+                    menuHapusMaterial(scanner, rab);
                     break;
                 case "5":
-                    menuSimpanData(rab);
+                    menuSimpanData(rab, dao);
                     break;
                 case "6":
-                    menuMuatUlangData(rab);
+                    menuMuatData(rab);
                     break;
                 case "0":
-                    berjalan = menuKeluarAplikasi();
+                    berjalan = menuKeluarAplikasi(scanner);
                     break;
                 default:
                     System.out.println("\n[PERINGATAN] Pilihan menu tidak valid! Silakan masukkan angka 0 sampai 6.\n");
@@ -89,49 +89,24 @@ public class Main {
         System.out.println("------------------------------------------------------------------------------------------");
     }
 
-    private static void menuTambahMaterial(RencanaAnggaran rab) {
+    // -------------------------------------------------------------------------
+    // METHOD-METHOD MENU UTAMA HASIL REFACTORING MODUL 14
+    // -------------------------------------------------------------------------
+
+    private static void menuTambahMaterial(Scanner scanner, RencanaAnggaran rab) {
         System.out.println("\n--- [1] TAMBAH MATERIAL BARU KE RAB ---");
         try {
-            System.out.print("Masukkan Kode Item (contoh: MAT01): ");
-            String kode = scanner.nextLine().trim();
-            if (kode.isEmpty()) {
-                System.out.println("[GAGAL] Kode item tidak boleh kosong!\n");
-                return;
-            }
+            String kode = bacaInput(scanner, "Masukkan Kode Item (contoh: MAT01): ");
+            String nama = bacaInput(scanner, "Masukkan Nama Material: ");
+            String satuan = bacaInput(scanner, "Masukkan Satuan (misal: Sak, m3, Batang, Pcs): ");
+            double hargaSatuan = bacaInputDouble(scanner, "Masukkan Harga Satuan (Rp): ");
+            double jumlah = bacaInputDouble(scanner, "Masukkan Jumlah Pembelian: ");
 
-            // Validasi apakah kode sudah ada
-            if (rab.cariItem(kode) != null) {
-                System.out.println("[GAGAL] Item dengan kode '" + kode + "' sudah ada di dalam RAB!\n");
-                return;
-            }
-
-            System.out.print("Masukkan Nama Material: ");
-            String nama = scanner.nextLine().trim();
-            if (nama.isEmpty()) {
-                System.out.println("[GAGAL] Nama material tidak boleh kosong!\n");
-                return;
-            }
-
-            System.out.print("Masukkan Satuan (misal: Sak, m3, Batang, Pcs): ");
-            String satuan = scanner.nextLine().trim();
-            if (satuan.isEmpty()) {
-                System.out.println("[GAGAL] Satuan material tidak boleh kosong!\n");
-                return;
-            }
-
-            System.out.print("Masukkan Harga Satuan (Rp): ");
-            String strHarga = scanner.nextLine().trim();
-            double hargaSatuan = Double.parseDouble(strHarga.replace(',', '.'));
-
-            System.out.print("Masukkan Jumlah Pembelian: ");
-            String strJumlah = scanner.nextLine().trim();
-            int jumlah = Integer.parseInt(strJumlah);
-
-            // Buat objek Material & DetailItem
+            // Buat objek domain Material & DetailItem (validasi harga & jumlah > 0 ada di kelas domain)
             Material materialBaru = new Material(kode, nama, satuan, hargaSatuan);
-            DetailItem detailBaru = new DetailItem(materialBaru, jumlah);
+            DetailItem detailBaru = new DetailItem(materialBaru, (int) Math.round(jumlah));
 
-            // Tambahkan ke RAB dengan validasi batas budget
+            // Validasi duplikasi dan batas budget didelegasikan penuh ke domain RencanaAnggaran
             rab.tambahItem(detailBaru);
 
             apakahAdaPerubahan = true;
@@ -139,8 +114,6 @@ public class Main {
             System.out.printf("Total Biaya RAB Saat Ini: Rp %,.2f | Sisa Budget: Rp %,.2f%n\n", 
                 rab.hitungTotalBiaya(), (rab.getBatasBudget() - rab.hitungTotalBiaya()));
 
-        } catch (NumberFormatException e) {
-            System.out.println("\n[GAGAL INPUT] Input angka tidak valid! Harap masukkan angka yang benar.\n");
         } catch (IllegalArgumentException e) {
             System.out.println("\n[GAGAL VALIDASI] " + e.getMessage() + "\n");
         } catch (BudgetOverlimitException e) {
@@ -148,21 +121,15 @@ public class Main {
         }
     }
 
-    private static void menuTampilkanLaporan(RencanaAnggaran rab) {
+    private static void menuCetakLaporan(RencanaAnggaran rab) {
         System.out.println();
         rab.cetakLaporanRAB();
         System.out.println();
     }
 
-    private static void menuCariMaterial(RencanaAnggaran rab) {
+    private static void menuCariMaterial(Scanner scanner, RencanaAnggaran rab) {
         System.out.println("\n--- [3] CARI MATERIAL BERDASARKAN KODE ITEM ---");
-        System.out.print("Masukkan Kode Item yang dicari: ");
-        String kode = scanner.nextLine().trim();
-
-        if (kode.isEmpty()) {
-            System.out.println("[GAGAL] Kode item tidak boleh kosong!\n");
-            return;
-        }
+        String kode = bacaInput(scanner, "Masukkan Kode Item yang dicari: ");
 
         DetailItem item = rab.cariItem(kode);
         if (item != null) {
@@ -178,15 +145,9 @@ public class Main {
         }
     }
 
-    private static void menuHapusMaterial(RencanaAnggaran rab) {
+    private static void menuHapusMaterial(Scanner scanner, RencanaAnggaran rab) {
         System.out.println("\n--- [4] HAPUS MATERIAL DARI RAB ---");
-        System.out.print("Masukkan Kode Item yang akan dihapus: ");
-        String kode = scanner.nextLine().trim();
-
-        if (kode.isEmpty()) {
-            System.out.println("[GAGAL] Kode item tidak boleh kosong!\n");
-            return;
-        }
+        String kode = bacaInput(scanner, "Masukkan Kode Item yang akan dihapus: ");
 
         boolean berhasilHapus = rab.hapusItem(kode);
         if (berhasilHapus) {
@@ -198,13 +159,13 @@ public class Main {
         }
     }
 
-    private static void menuSimpanData(RencanaAnggaran rab) {
+    private static void menuSimpanData(RencanaAnggaran rab, RencanaAnggaranDAO dao) {
         System.out.println("\n--- [5] SIMPAN DATA (DATABASE & FILE BACKUP) ---");
 
         boolean suksesDB = false;
         boolean suksesFile = false;
 
-        // 1. Simpan ke MySQL XAMPP Database
+        // 1. Simpan ke Database MySQL XAMPP
         System.out.println("1. Menyimpan ke MySQL Database ('buildeval_db')...");
         try {
             dao.simpanRAB(rab);
@@ -213,7 +174,7 @@ public class Main {
             System.err.println("   [ERROR DATABASE] Gagal menyimpan ke database MySQL: " + e.getMessage());
         }
 
-        // 2. Simpan ke File Teks Backup
+        // 2. Simpan ke File Backup Teks
         System.out.println("2. Menyimpan ke File Teks Backup ('" + BACKUP_PATH.getFileName() + "')...");
         try {
             BuildEvalFileRepository.simpanKeFile(BACKUP_PATH, rab);
@@ -234,14 +195,13 @@ public class Main {
         System.out.println();
     }
 
-    private static void menuMuatUlangData(RencanaAnggaran rab) {
+    private static void menuMuatData(RencanaAnggaran rab) {
         System.out.println("\n--- [6] MUAT ULANG DATA DARI FILE BACKUP ---");
 
-        // Konfirmasi jika ada perubahan yang belum disimpan
         if (apakahAdaPerubahan) {
             System.out.println("[PERHATIAN] Ada perubahan yang belum disimpan.");
-            System.out.print("Yakin ingin melanjutkan dan menimpa perubahan saat ini? (YA/TIDAK): ");
-            String konfirmasi = scanner.nextLine().trim();
+            Scanner tempScanner = new Scanner(System.in);
+            String konfirmasi = bacaInput(tempScanner, "Yakin ingin melanjutkan dan menimpa perubahan saat ini? (YA/TIDAK): ");
             if (!konfirmasi.equalsIgnoreCase("YA")) {
                 System.out.println("[BATAL] Operasi muat ulang data dibatalkan.\n");
                 return;
@@ -261,16 +221,41 @@ public class Main {
         }
     }
 
-    private static boolean menuKeluarAplikasi() {
+    private static boolean menuKeluarAplikasi(Scanner scanner) {
         if (apakahAdaPerubahan) {
             System.out.println("\n[PERHATIAN] Ada perubahan yang belum disimpan.");
-            System.out.print("Yakin ingin keluar dari aplikasi? (YA/TIDAK): ");
-            String konfirmasi = scanner.nextLine().trim();
+            String konfirmasi = bacaInput(scanner, "Yakin ingin keluar dari aplikasi? (YA/TIDAK): ");
             if (!konfirmasi.equalsIgnoreCase("YA")) {
                 System.out.println("[BATAL] Keluar aplikasi dibatalkan. Silakan simpan data terlebih dahulu.\n");
                 return true; // Tetap berjalan
             }
         }
-        return false; // Berhenti / keluar
+        return false; // Berhenti
+    }
+
+    // -------------------------------------------------------------------------
+    // METHOD HELPER INPUT UNTUK MENYEDERHANAKAN PEMBACAAN DAN VALIDASI SCANNER
+    // -------------------------------------------------------------------------
+
+    private static String bacaInput(Scanner scanner, String pesan) {
+        System.out.print(pesan);
+        String input = scanner.nextLine().trim();
+        while (input.isEmpty()) {
+            System.out.print("[Input tidak boleh kosong!] " + pesan);
+            input = scanner.nextLine().trim();
+        }
+        return input;
+    }
+
+    private static double bacaInputDouble(Scanner scanner, String pesan) {
+        while (true) {
+            System.out.print(pesan);
+            String raw = scanner.nextLine().trim();
+            try {
+                return Double.parseDouble(raw.replace(',', '.'));
+            } catch (NumberFormatException e) {
+                System.out.println("[Format angka tidak valid!] Harap masukkan bilangan angka yang benar.");
+            }
+        }
     }
 }
